@@ -265,7 +265,33 @@
 		<p>Before, <code>set_view</code> encoded <code>x</code>, <code>y</code>, and <code>span</code> implicitly inside the matrix. After adding rotation, panning and zooming would decode these incorrectly. To fix this, <code>view_cx</code>, <code>view_cy</code>, <code>view_span_state</code>, and <code>view_angle</code> are now stored explicitly for each SVG in <code>drawrend.h</code>, and <code>move_view</code> reads from those instead of extracting them from the matrix.</p>
 
 		<h2>Task 4: Barycentric coordinates</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+		<h3>Barycentric Coordinates</h3>
+		<p>Barycentric coordinates express any point \(P\) inside a triangle as a weighted sum of its vertices \(A\), \(B\), \(C\):</p>
+		\[ P = \alpha A + \beta B + \gamma C, \quad \alpha + \beta + \gamma = 1, \quad \alpha, \beta, \gamma \geq 0 \]
+		<p>Each weight equals the fraction of the total triangle area in the sub-triangle opposite that vertex. A point near vertex \(A\) has \(\alpha \approx 1\); the centroid has \(\alpha = \beta = \gamma = \tfrac{1}{3}\).</p>
+		<p>To interpolate color, the same weights are applied to the vertex colors:</p>
+		\[ \text{color}(P) = \alpha \cdot c_A + \beta \cdot c_B + \gamma \cdot c_C \]
+		<p>This gives a smooth gradient — pixels closer to a vertex take on more of that vertex's color. The RGB triangle below illustrates this directly.</p>
+		<p>In the implementation, the edge-function values <code>l0, l1, l2</code> computed during rasterization are directly proportional to \(\alpha\), \(\beta\), \(\gamma\), so the interpolated color is just:</p>
+		<pre><code>Color interp = (l1 * c0 + l2 * c1 + l0 * c2) / (l0 + l1 + l2);</code></pre>
+
+		<hr>
+
+		<h3>Result</h3>
+		<p><code>svg/basic/test7.svg</code> at sample rates 1 and 16:</p>
+		<div style="display: flex; justify-content: center;">
+			<table style="border-collapse: collapse; text-align: center;">
+				<tr>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">\(n = 1\)</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">\(n = 16\)</th>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t4-color-wheel-n1.png" alt="test7 color wheel n=1" style="max-width: 300px; width: 100%;"></td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t4-color-wheel-n16.png" alt="test7 color wheel n=16" style="max-width: 300px; width: 100%;"></td>
+				</tr>
+			</table>
+		</div>
 
 		<h2>Task 5: "Pixel sampling" for texture mapping</h2>
 		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
