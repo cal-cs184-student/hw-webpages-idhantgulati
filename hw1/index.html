@@ -51,39 +51,218 @@
 		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
 
 		<h2>Task 1: Drawing Single-Color Triangles</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
-		<div style="display: flex; flex-direction: column; align-items: center;">
-			<table style="width: 100%; text-align: center; border-collapse: collapse;">
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-				<td style="text-align: center;">
-				  <img src="lion.jpg" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
+		<h3>Algorithm</h3>
+		<p>Given three vertices, we find which pixels to fill using three steps:</p>
+		<ol>
+			<li><strong>Bounding box</strong> - compute the min/max of the vertices' x and y coordinates, clamped to the framebuffer, to get the smallest rectangle that contains the triangle.</li>
+			<li><strong>Sample each pixel center</strong> - for every pixel \((x, y)\) in the box, test the point \((x + 0.5,\ y + 0.5)\).</li>
+			<li><strong>Edge function test</strong> - evaluate three edge functions, one per edge:
+				\[ L_0 = (x_1 - x_0)(p_y - y_0) - (y_1 - y_0)(p_x - x_0) \]
+				\[ L_1 = (x_2 - x_1)(p_y - y_1) - (y_2 - y_1)(p_x - x_1) \]
+				\[ L_2 = (x_0 - x_2)(p_y - y_2) - (y_0 - y_2)(p_x - x_2) \]
+				If all three are \(\geq 0\) (or all \(\leq 0\), to handle both winding orders), the pixel is inside and gets filled.
+			</li>
+		</ol>
+		<p>This is no worse than checking every sample in the bounding box, visiting each pixel in the box exactly once with \(O(1)\) work per pixel.</p>
+
+		<hr>
+
+		<h3>Optimizations [bonus]</h3>
+		<p>All timings use <code>std::chrono::high_resolution_clock</code>, sample rate = 1. Median across steady-state frames is reported.</p>
+
+		<h4>Optimized v0 - Incremental Edge Functions + Early Exit</h4>
+		<p>The basic version recomputes all three edge functions from scratch per pixel. Since \(L\) is linear, moving one pixel in either direction changes it by a constant step:</p>
+		\[ \Delta L_x = -(b_y - a_y) \qquad \Delta L_y = (b_x - a_x) \]
+		<p>The edge functions are evaluated once at the top-left sample and stepped with additions from there, using 3 additions per pixel instead of ~12 multiply-subtracts.</p>
+		<p>Additional changes: zero-area triangles are rejected immediately; winding is checked once up front so the inner loop does 3 comparisons instead of 6; since triangles are convex each scanline has one contiguous span, so the loop breaks as soon as it exits the span; and <code>fill_pixel</code> is inlined to a direct buffer write.</p>
+
+		<h4>Optimized v1 - Analytical Span Start + Pointer Arithmetic</h4>
+		<p>Builds on v0 with two more changes:</p>
+		<ul>
+			<li><strong>CCW normalization</strong> - CW triangles have all three edge functions negated once before the loops. The inner test is then always "all three \(\geq 0\)", removing the winding branch from the hot path entirely.</li>
+			<li><strong>Analytical span start</strong> - instead of walking from the left edge of the bounding box until hitting the triangle, v1 computes the first covered column directly. For each entering edge (\(\Delta L_x > 0\)), the first column where \(L \geq 0\) is:
+				\[ k = \left\lceil \frac{-L_{\text{row}}}{\Delta L_x} \right\rceil \]
+				The max over all entering edges gives \(k_{\text{enter}}\). Edge values are advanced to that column in one multiply, skipping all empty pixels in one shot. This is most effective on narrow or slanted triangles where the span is much smaller than the bounding box width.
+			</li>
+			<li><strong>Pointer arithmetic</strong> - a <code>Color*</code> pointer walks with <code>++ptr</code>, avoiding a multiply per pixel.</li>
+		</ul>
+
+		<hr>
+
+		<h3>Timing Results</h3>
+
+		<h4><code>svg/basic/test4.svg</code>, 5 triangles, sample rate 1</h4>
+		<div style="display: flex; justify-content: center;">
+			<table style="border-collapse: collapse; text-align: center;">
+				<tr>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Version</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">ms / tri</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Speedup</th>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">Basic</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">0.117</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">1.0x</td>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">Opt v0</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">0.054</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><strong>2.2x</strong></td>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">Opt v1</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">0.040</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><strong>2.9x</strong></td>
+				</tr>
 			</table>
 		</div>
+
+		<h4><code>svg/hardcore/01_degenerate_square1.svg</code>, 100 triangles, sample rate 1</h4>
+		<div style="display: flex; justify-content: center;">
+			<table style="border-collapse: collapse; text-align: center;">
+				<tr>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Version</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">ms / tri</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Speedup</th>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">Basic</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">0.799</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">1.0x</td>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">Opt v0</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">0.248</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><strong>3.2x</strong></td>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">Opt v1</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;">0.029</td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><strong>27.2x</strong></td>
+				</tr>
+			</table>
+		</div>
+
+		<h4>Screenshot</h4>
+		<div style="display: flex; justify-content: center; margin-bottom: 18px;">
+			<figure>
+				<img src="task-1.png" alt="Task 1 Rasterization Output Screenshot" style="max-width: 460px; width: 100%; border: 1px solid #aaa; box-shadow: 2px 2px 8px #ddd; margin-bottom: 5px;">
+				<figcaption style="font-size: 0.95em; color: #444; margin-top: 4px;">Result of triangle rasterization (see <code>basic/test4.svg</code> output)</figcaption>
+			</figure>
+		</div>
+
+		<h4>Observations</h4>
+		<p>On the basic scene gains are modest (~3x total) since the triangles are large and their spans nearly fill the bounding box, so the analytical skip-ahead in v1 has little to skip.</p>
+		<p>The hard scene (100 near-degenerate triangles) shows the real benefit. v0 gives 3.2x from eliminating multiplications and early span exit. v1 then reaches <strong>27x</strong> over basic, almost entirely from the analytical span start. Degenerate triangles have very narrow spans relative to their bounding boxes, so jumping directly to the first covered pixel eliminates the vast majority of otherwise-wasted iterations.</p>
 		
 		<h2>Task 2: Antialiasing by Supersampling</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+		<h3>Why Supersampling?</h3>
+		<p>A triangle edge cuts continuously through pixels, but sampling only the pixel center gives a binary on/off result, producing jagged staircase edges. Supersampling tests \(n\) points per pixel and averages the results, converting coverage into a proportional color blend that smooths edges.</p>
+
+		<h3>Data Structure</h3>
+		<p><code>sample_buffer</code> is sized \(W \times H \times n\) where \(n\) = <code>sample_rate</code>. Each pixel \((x, y)\) maps to a contiguous block of \(n\) entries at index \((y \cdot W + x) \cdot n\), laid out as a \(\sqrt{n} \times \sqrt{n}\) grid indexed by \(s_j \cdot \sqrt{n} + s_i\).</p>
+
+		<h3>Pipeline Changes</h3>
+		<p><strong><code>set_sample_rate</code> / <code>set_framebuffer_target</code></strong> - resize <code>sample_buffer</code> to \(W \times H \times n\) whenever the rate or window size changes.</p>
+		<p><strong><code>rasterize_triangle</code></strong> - iterate over a virtual high-res grid of size \((W \cdot \sqrt{n}) \times (H \cdot \sqrt{n})\). Each high-res pixel \((hx, hy)\) has its sample center at \(\left(\frac{hx + 0.5}{\sqrt{n}},\ \frac{hy + 0.5}{\sqrt{n}}\right)\). Edge function increments are scaled by \(\frac{1}{\sqrt{n}}\) to match the finer step size. A passing sample is written to:
+		\[\texttt{sample_buffer}[(y \cdot W + x) \cdot n + s_j \cdot \sqrt{n} + s_i] = \text{color}\]
+		where \((x, y) = \left(\frac{hx}{\sqrt{n}},\ \frac{hy}{\sqrt{n}}\right)\) and \((s_i, s_j) = \left(hx \bmod \sqrt{n},\ hy \bmod \sqrt{n}\right)\).</p>
+		<p><strong><code>fill_pixel</code></strong> - points and lines are not supersampled, but all \(n\) slots for the pixel are filled with the same color so they resolve at full intensity.</p>
+		<p><strong><code>resolve_to_framebuffer</code></strong> - average all \(n\) sub-samples per pixel, clamp to \([0, 1]\), and write as 8-bit RGB:
+		\[\text{color}_{out} = \frac{1}{n} \sum_{s=0}^{n-1} \texttt{sample\_buffer}[(y \cdot W + x) \cdot n + s]\]</p>
+
+		<h3>Results - <code>basic/test4.svg</code></h3>
+		<p>The screenshots below compare sample rates on a skinny triangle corner, where aliasing is most visible.</p>
+		<div style="display: flex; justify-content: center;">
+			<table style="border-collapse: collapse; text-align: center;">
+				<tr>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">\(n = 1\)</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">\(n = 4\)</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">\(n = 16\)</th>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-1.png" alt="test4 n=1" style="max-width: 200px; width: 100%;"></td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-4.png" alt="test4 n=4" style="max-width: 200px; width: 100%;"></td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-16.png" alt="test4 n=16" style="max-width: 200px; width: 100%;"></td>
+				</tr>
+			</table>
+		</div>
+		<p>At \(n = 1\), pixels are binary (fully on or off), producing hard jagged edges and disconnected fragments at the triangle tip. At \(n = 4\), edge pixels capture partial coverage and display intermediate shades, smoothing the staircase significantly. At \(n = 16\), the blend is even finer, with the transition region spanning more pixels at softer intensities. The improvement is most dramatic at the skinny corner because that is where the triangle covers only a tiny fraction of each pixel, and a single center sample either misses entirely or hits solidly with no in-between.</p>
+
+		<hr>
+
+		<h3>Jittered Supersampling [bonus]</h3>
+
+		<h4>Method</h4>
+		<p>Grid supersampling places samples at fixed cell centers \(\left(\frac{s_i + 0.5}{\sqrt{n}},\ \frac{s_j + 0.5}{\sqrt{n}}\right)\) within each pixel. This regularity can cause structured aliasing: a thin feature that falls exactly between two sample rows is missed by every pixel consistently, making it completely invisible.</p>
+		<p>Jittered (stratified) sampling keeps the same \(\sqrt{n} \times \sqrt{n}\) cell subdivision but randomizes the sample position within each cell:
+		\[\left(x + \frac{s_i + \xi_x}{\sqrt{n}},\ y + \frac{s_j + \xi_y}{\sqrt{n}}\right), \quad \xi_x, \xi_y \in [0, 1)\]
+		where \(\xi_x, \xi_y\) are deterministic per-pixel pseudo-random offsets from a fast integer hash (toggled with the <code>J</code> key). This breaks the fixed grid pattern, converting structured Moire / missed-feature aliasing into high-frequency noise, which is perceptually far less objectionable.</p>
+
+		<h4>Comparison on <code>basic/test4.svg</code></h4>
+		<div style="display: flex; justify-content: center;">
+			<table style="border-collapse: collapse; text-align: center;">
+				<tr>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Grid (\(n = 4\))</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Jittered (\(n = 4\))</th>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-n4-grid.png" alt="grid n=4" style="max-width: 300px; width: 100%;"></td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-n4-jit.png" alt="jitter n=4" style="max-width: 300px; width: 100%;"></td>
+				</tr>
+			</table>
+		</div>
+		<p>Both methods smooth edges at the same sample count. The jittered version introduces slight per-pixel noise along edges instead of the regular staircase pattern from grid sampling.</p>
+
+		<h4>Comparison on <code>basic/test_jitter.svg</code> (stress test)</h4>
+		<p>To isolate the failure mode of grid sampling, a custom SVG (<code>svg/basic/test_jitter.svg</code>) was generated using <a href="https://claude.ai" target="_blank">Claude</a> (the AI completely wrote the SVG from a description of the desired aliasing behavior). It contains 60 diagonal stripes each only 0.40 pixels tall, centered between two sample rows of the \(2 \times 2\) grid. At \(n = 4\) with grid sampling, every stripe lands between the fixed sample positions \(y + 0.25\) and \(y + 0.75\), so they are completely missed. With jittered sampling, the random offsets place roughly 40% of sub-samples inside each stripe, making the stripes visible as faint colored bands.</p>
+		<div style="display: flex; justify-content: center;">
+			<table style="border-collapse: collapse; text-align: center;">
+				<tr>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Original</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Grid (\(n = 4\))</th>
+					<th style="border: 1px solid #ccc; padding: 6px 16px;">Jittered (\(n = 4\))</th>
+				</tr>
+				<tr>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="jitter-original.png" alt="jitter svg original" style="max-width: 300px; width: 100%;"></td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-no-jit-n4-cld.png" alt="jitter svg grid" style="max-width: 300px; width: 100%;"></td>
+					<td style="border: 1px solid #ccc; padding: 6px 16px;"><img src="t2-jit-n4-cld.png" alt="jitter svg jitter" style="max-width: 300px; width: 100%;"></td>
+				</tr>
+			</table>
+		</div>
+		<p>This demonstrates a case where grid supersampling completely fails (the scene content is entirely invisible) while jittered sampling recovers it as noise rather than dropping it.</p>
 
 		<h2>Task 3: Transforms</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+		<h3>Implementation</h3>
+		<p>Implemented <code>translate</code>, <code>scale</code>, and <code>rotate</code> in <code>src/transforms.cpp</code> as standard 2D homogeneous transformation matrices:</p>
+		<ul>
+			<li><strong>translate(dx, dy)</strong> — shifts by (dx, dy) in the last column</li>
+			<li><strong>scale(sx, sy)</strong> — scales each axis independently along the diagonal</li>
+			<li><strong>rotate(deg)</strong> — converts degrees to radians, builds a standard rotation matrix using cos/sin</li>
+		</ul>
+
+		<h3>my_robot.svg</h3>
+		<p>Cubeman is <strong>waving</strong>. His left arm is raised and bent upward (rotated −60° at the shoulder, then +30° at the elbow), while his right arm hangs slightly to the side. His arms are colored yellow to make the wave stand out. The body and legs are blue.</p>
+		<p>The hierarchical transforms let each limb segment be positioned relative to its parent joint, so rotating the upper arm automatically carries the forearm along with it.</p>
+		<div style="display: flex; justify-content: center; margin-bottom: 18px;">
+			<figure>
+				<img src="t3-robot.png" alt="my_robot" style="max-width: 460px; width: 100%; border: 1px solid #aaa; box-shadow: 2px 2px 8px #ddd; margin-bottom: 5px;">
+				<figcaption style="font-size: 0.95em; color: #444; margin-top: 4px;">Cubeman waving — hierarchical transforms applied to arm segments</figcaption>
+			</figure>
+		</div>
+
+		<h3>Viewport Rotation (<code>[</code> / <code>]</code>) [bonus]</h3>
+		<p>Added two keybindings — <code>[</code> and <code>]</code> — that rotate the entire viewport counterclockwise and clockwise by 5° per press.</p>
+		<p><strong>How it works:</strong></p>
+		<p><code>set_view</code> normally built <code>svg_to_ndc</code> as a simple scale+translate that maps the view center \((x, y)\) with half-width <code>span</code> to the NDC square \([0,1]^2\). The new version inserts a rotation step, building the matrix analytically as:</p>
+		\[
+		T(0.5,\,0.5) \cdot S\left(\frac{1}{2\,\text{span}}\right) \cdot R(\theta) \cdot T(-x,\,-y)
+		\]
+		<p>This sequence translates the view center to the origin, rotates by \(\theta\) degrees, scales the result to NDC, and then re-centers at \((0.5,\,0.5)\) &mdash; all as a single closed-form \(3 \times 3\) matrix in <code>svg_to_ndc</code>. The existing <code>ndc_to_screen</code> transform then takes over unchanged.</p>
+		<p>Before, <code>set_view</code> encoded <code>x</code>, <code>y</code>, and <code>span</code> implicitly inside the matrix. After adding rotation, panning and zooming would decode these incorrectly. To fix this, <code>view_cx</code>, <code>view_cy</code>, <code>view_span_state</code>, and <code>view_angle</code> are now stored explicitly for each SVG in <code>drawrend.h</code>, and <code>move_view</code> reads from those instead of extracting them from the matrix.</p>
 
 		<h2>Task 4: Barycentric coordinates</h2>
 		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
