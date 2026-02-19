@@ -1,79 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-	<style>
-			h1 {
-				text-align: center;
-			}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS 184 / 284A — Homework Webpages</title>
 
-			.container {
-				margin: 0 auto;
-				padding: 60px 20%;
-			}
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-			figure {
-				text-align: center;
-			}
+  <style>
+    /* ── Iowan Old Style ─────────────────────────────────────── */
+    @font-face {
+      font-family: 'IowanOldStyle';
+      src: url('public/fonts/iowanoldst-bt/bitstream-iowan-old-style-bt-586c36a8d7712.ttf') format('truetype');
+      font-weight: 400; font-style: normal;
+    }
+    @font-face {
+      font-family: 'IowanOldStyle';
+      src: url('public/fonts/iowanoldst-bt/bitstream-iowan-old-style-italic-bt-586c3740dc396.ttf') format('truetype');
+      font-weight: 400; font-style: italic;
+    }
+    @font-face {
+      font-family: 'IowanOldStyle';
+      src: url('public/fonts/iowanoldst-bt/bitstream-iowan-old-style-bold-bt-586c371d8d669.ttf') format('truetype');
+      font-weight: 700; font-style: normal;
+    }
 
-			img {
-				display: inline-block;
-			}
+    /* ── Tokens ──────────────────────────────────────────────── */
+    :root {
+      --bg:        #fdfcf8;
+      --bg-card:   #ffffff;
+      --border:    #e2ddd4;
+      --text:      #1a1a1e;
+      --muted:     #888;
+      --accent:    #2d5be3;
+      --accent-dim: rgba(45, 91, 227, 0.10);
+      --serif:     'IowanOldStyle', Georgia, 'Times New Roman', serif;
+      --sans:      'Inter', system-ui, -apple-system, sans-serif;
+    }
 
-			body {
-				font-family: 'Inter', sans-serif;
-				line-height: 1.4;
-				color: #32323a;
-				background-color: #ffffff;
-				display: flex;
-				flex-direction: column;
-				justify-content: center;
-				align-items: center;
-				width: 40%;
-				height: 100%;
-				margin: 0;
-				position: absolute;
-				left: 50%;
-				transform: translateX(-50%);
-			}
+    /* ── Dark mode tokens ────────────────────────────────────── */
+    [data-theme="dark"] {
+      --bg:        #141414;
+      --bg-card:   #1e1e1e;
+      --border:    #2e2e2e;
+      --text:      #e8e6e0;
+      --muted:     #888;
+      --accent:    #6b93f5;
+      --accent-dim: rgba(107, 147, 245, 0.12);
+    }
 
-		@media (max-width: 600px) {
-			body {
-				width: 100%;
-				left: 0;
-				transform: none;
-			}
-		}
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
 
-		a {
-			text-decoration: none;
-			color: #0057A8;
-		}
+    body {
+      background: var(--bg);
+      font-family: var(--sans);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      transition: background .25s, color .25s;
+    }
 
-		a:hover {
-			color: #8E018E !important;
-			text-decoration: underline;
-		}
-	</style>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS184/284A Homework Webpages</title>
-	</head>
-	<body>
-		<div class="wrapper">
-			<header>
-				<h1 style="align-self:flex-end;">CS184/284A Homework Webpages</h1>
-			</header>
-			<main>
-				<div class="content">
-					<ul>
-						<li><a href="hw1/index.html">Homework 1</a></li>
-						<li><a href="hw2/index.html">Homework 2</a></li>
-						<li><a href="hw3/index.html">Homework 3</a></li>
-						<li><a href="hw4/index.html">Homework 4</a></li>
-					</ul>
-				</div>
-			</main>
-		</div>
-	</body>
+    /* ── Top bar ─────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 12px 2rem;
+      border-bottom: 1px solid var(--border);
+      transition: border-color .25s;
+    }
+
+    #theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.82rem;
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 11px;
+      height: 30px;
+      transition: border-color .15s, color .15s, background .15s;
+      font-family: var(--sans);
+      font-weight: 500;
+    }
+    #theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* ── Page layout ─────────────────────────────────────────── */
+    .page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 72px 2rem 80px;
+      text-align: center;
+    }
+
+    /* ── Eyebrow ─────────────────────────────────────────────── */
+    .eyebrow {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.85;
+      margin-bottom: 20px;
+    }
+
+    /* ── Heading ─────────────────────────────────────────────── */
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 400;
+      letter-spacing: -0.015em;
+      line-height: 1.18;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 52px;
+    }
+
+    /* ── Divider ─────────────────────────────────────────────── */
+    .rule {
+      width: 36px; height: 2px;
+      background: var(--border);
+      margin: 0 auto 52px;
+      border-radius: 2px;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, 220px);
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 24px;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s, background .25s, color .25s;
+      text-align: left;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 6px 24px rgba(45, 91, 227, 0.10), 0 1px 4px rgba(0,0,0,0.05);
+      transform: translateY(-2px);
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .card-num {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.8;
+    }
+
+    .card-title {
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      font-weight: 400;
+      line-height: 1.3;
+      color: var(--text);
+    }
+
+    .card-arrow {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      transition: color .15s;
+    }
+
+    .card:hover .card-arrow { color: var(--accent); }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 24px 2rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--muted);
+      transition: border-color .25s;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 520px) {
+      .cards { grid-template-columns: 1fr; width: 100%; max-width: 280px; }
+      .page  { padding: 60px 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <button id="theme-toggle" aria-label="Toggle dark mode">
+      <i class="fas fa-moon"></i><span>Dark</span>
+    </button>
+  </div>
+
+  <main class="page">
+    <p class="eyebrow">UC Berkeley &nbsp;·&nbsp; Spring 2026</p>
+    <h1>CS 184 / 284A<br>Homework Webpages</h1>
+    <p class="subtitle">Write-ups and results for each assignment</p>
+    <p style="font-size:0.88rem; color: var(--text); margin-top: -36px; margin-bottom: 52px;">
+      Idhant Gulati &nbsp;·&nbsp;
+      <span id="email-copy" title="Click to copy" style="cursor: pointer; user-select: none;">idhant [at] berkeley [dot] edu</span>
+    </p>
+    <div class="rule"></div>
+
+    <nav class="cards">
+      <a class="card" href="hw1/index.html">
+        <span class="card-num">HW 1</span>
+        <span class="card-title">Rasterization Pipeline</span>
+        <span class="card-arrow">View write-up →</span>
+      </a>
+      <div class="card">
+        <span class="card-num">HW 2</span>
+        <span class="card-title"><em>Coming Soon</em></span>
+        <!-- <span class="card-arrow">View write-up →</span> -->
+      </div>
+      <div class="card">
+        <span class="card-num">HW 3</span>
+        <span class="card-title"><em>Coming Soon</em></span>
+        <!-- <span class="card-arrow">View write-up →</span> -->
+      </div>
+      <div class="card">
+        <span class="card-num">HW 4</span>
+        <span class="card-title"><em>Coming Soon</em></span>
+        <!-- <span class="card-arrow">View write-up →</span> -->
+      </div>
+    </nav>
+  </main>
+
+  <footer>CS 184 / 284A &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; UC Berkeley</footer>
+
+  <script>
+    document.getElementById('email-copy').addEventListener('click', function() {
+      navigator.clipboard.writeText('idhant@berkeley.edu');
+      const el = this;
+      const orig = el.textContent;
+      el.textContent = 'copied!';
+      setTimeout(() => el.textContent = orig, 1800);
+    });
+  </script>
+
+  <script>
+    const toggle = document.getElementById('theme-toggle');
+    const root   = document.documentElement;
+
+    const icons = {
+      light: '<i class="fas fa-moon"></i><span>Dark</span>',
+      dark:  '<i class="fas fa-sun"></i><span>Light</span>'
+    };
+
+    function applyTheme(theme) {
+      root.setAttribute('data-theme', theme);
+      toggle.innerHTML = icons[theme === 'dark' ? 'dark' : 'light'];
+      localStorage.setItem('theme', theme);
+    }
+
+    const saved  = localStorage.getItem('theme');
+    const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    applyTheme(saved || system);
+
+    toggle.addEventListener('click', () => {
+      applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+  </script>
+
+</body>
 </html>
