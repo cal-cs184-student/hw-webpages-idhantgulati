@@ -193,43 +193,42 @@
       box-shadow: 0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
     }
 
-    /* ── Hero buttons ────────────────────────────────────────── */
-    .hero-buttons {
+    /* ── Hero links ──────────────────────────────────────────── */
+    .hero-links {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 0;
       justify-content: center;
-      margin-top: 28px;
+      align-items: center;
+      margin-top: 24px;
     }
 
-    .btn {
+    .hero-links a {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 9px 20px;
-      border-radius: 100px;
+      gap: 6px;
       font-size: 0.82rem;
       font-weight: 500;
-      letter-spacing: 0.01em;
+      color: var(--text-muted);
       text-decoration: none;
-      transition: background .18s, box-shadow .18s, transform .15s;
-      line-height: 1;
+      padding: 0 16px;
+      transition: color .15s;
+      position: relative;
     }
-
-    .btn-dark {
-      background: #1a1a1e;
-      color: #f0f0f0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    .hero-links a:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 15%;
+      height: 70%;
+      width: 1px;
+      background: var(--border);
     }
-    .btn-dark:hover {
-      background: #2d2d35;
-      color: #ffffff;
+    .hero-links a:hover {
+      color: var(--text);
       text-decoration: none;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.22);
-      transform: translateY(-1px);
     }
-
-    .btn i { font-size: 0.88em; }
+    .hero-links a i { font-size: 0.95em; }
 
     /* ── Main ────────────────────────────────────────────────── */
     main {
@@ -391,7 +390,7 @@
     }
 
     /* smooth theme transitions */
-    body, nav, main, header, footer, table, th, td, pre, code, .card, .btn-dark {
+    body, nav, main, header, footer, table, th, td, pre, code, .card {
       transition: background .25s, color .25s, border-color .25s, box-shadow .25s;
     }
 
@@ -444,14 +443,12 @@
       <span>Idhant Gulati &nbsp;·&nbsp; <span id="email-copy" title="Click to copy" style="cursor: pointer; user-select: none;">idhant [at] berkeley [dot] edu</span></span>
     </div>
 
-    <div class="hero-buttons">
-      <a class="btn btn-dark" href="https://cs-184.idhant.xyz/" target="_blank">
-        <i class="fas fa-globe"></i>
-        <span>Website</span>
+    <div class="hero-links">
+      <a href="https://cs-184.idhant.xyz/" target="_blank">
+        <i class="fas fa-globe"></i>cs-184.idhant.xyz
       </a>
-      <a class="btn btn-dark" href="https://github.com/cal-cs184-student/hw1-rasterizer-idhant" target="_blank">
-        <i class="fab fa-github"></i>
-        <span>GitHub</span>
+      <a href="https://github.com/cal-cs184-student/hw1-rasterizer-idhant" target="_blank">
+        <i class="fab fa-github"></i>cal-cs184-student/hw1-rasterizer-idhant
       </a>
     </div>
 
