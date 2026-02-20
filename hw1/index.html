@@ -469,7 +469,8 @@
     <div class="section-label">
       <h2>Overview</h2>
     </div>
-    <p>Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.</p>
+    <p>A software rasterization pipeline built from scratch. Starting from bare triangles, I added supersampling for antialiasing, homogeneous 2D transforms, barycentric color interpolation, texture mapping with nearest/bilinear pixel sampling, and mipmap-based level sampling, culminating in full trilinear and anisotropic filtering. Bonus work includes incremental edge-function optimizations (~27x speedup on degenerate geometry), jittered supersampling, viewport rotation, and anisotropic filtering reusing the mipmap pyramid.</p>
+    <p>The most interesting insight was how each technique addresses aliasing at a different stage: supersampling tackles screen-space coverage, bilinear sampling smooths within a texture level, and mipmaps handle minification. Combining them reveals why the pipeline is layered the way it is, and why no single technique is sufficient on its own.</p>
   </section>
 
   <!-- Task 1 -->
@@ -837,7 +838,7 @@ return top * (1-t) + bottom * t;</code></pre>
         </tr>
         <tr>
           <td><code>L_LINEAR</code></td>
-          <td>~2× pixel samples</td>
+          <td>~2x pixel samples</td>
           <td>+33% (mipmaps)</td>
           <td>Smooth level transitions</td>
         </tr>
@@ -885,17 +886,17 @@ return top * (1-t) + bottom * t;</code></pre>
     <h3>Anisotropic Filtering <span style="font-weight:400; font-style:normal; font-size:0.88em;">[bonus]</span></h3>
 
     <h4>Why not Summed Area Tables?</h4>
-    <p>SAT can only average over axis-aligned rectangles. For diagonal footprints (the exact case where better filtering matters), the bounding rectangle is much larger than the actual footprint, causing over-blur. It also requires ~3× extra memory for floating-point prefix sums. The quality gain over trilinear is marginal.</p>
+    <p>SAT can only average over axis-aligned rectangles. For diagonal footprints (the exact case where better filtering matters), the bounding rectangle is much larger than the actual footprint, causing over-blur. It also requires ~3x extra memory for floating-point prefix sums. The quality gain over trilinear is marginal.</p>
 
     <h4>Anisotropic Filtering</h4>
     <p>Standard mipmaps use \(\text{level} = \log_2(\max(L_{dx}, L_{dy}))\), where \(L_{dx}\) and \(L_{dy}\) are the texel-space lengths of the screen-x and screen-y derivative vectors. When one axis is much longer than the other (oblique view), this over-blurs the sharp axis.</p>
     <p>Anisotropic filtering fixes this:</p>
     <ol>
-      <li>Use the <strong>minor axis</strong> length for the mip level — avoids over-blurring.</li>
+      <li>Use the <strong>minor axis</strong> length for the mip level, avoids over-blurring.</li>
       <li>Take \(N = \lceil L_\text{major} / L_\text{minor} \rceil\) (capped at 8) bilinear samples evenly spaced along the <strong>major axis</strong> direction.</li>
     </ol>
     \[ \text{level} = \log_2(L_\text{minor}), \qquad N = \min\!\left(8,\ \left\lceil \frac{L_\text{major}}{L_\text{minor}} \right\rceil\right) \]
-    <p>Each tap is a trilinear sample (bilinear blend across the two nearest mip levels), and the \(N\) taps are averaged. This reconstructs the elongated footprint without over-blurring the minor axis. No extra memory or preprocessing — it reuses the existing mipmap pyramid entirely.</p>
+    <p>Each tap is a trilinear sample (bilinear blend across the two nearest mip levels), and the \(N\) taps are averaged. This reconstructs the elongated footprint without over-blurring the minor axis. No extra memory or preprocessing, it reuses the existing mipmap pyramid entirely.</p>
 
     <h4>Performance</h4>
     <p>Measured with <code>std::chrono</code> per triangle on <code>test1.svg</code> (2592 triangles):</p>
@@ -909,31 +910,31 @@ return top * (1-t) + bottom * t;</code></pre>
         <tr>
           <td><code>L_ZERO + P_NEAREST</code></td>
           <td>0.0018</td>
-          <td>1.0× (baseline)</td>
+          <td>1.0x (baseline)</td>
         </tr>
         <tr>
           <td><code>L_ZERO + P_LINEAR</code></td>
           <td>0.0033</td>
-          <td>1.8×</td>
+          <td>1.8x</td>
         </tr>
         <tr>
           <td><code>L_NEAREST + P_LINEAR</code></td>
           <td>0.0055</td>
-          <td>3.0×</td>
+          <td>3.0x</td>
         </tr>
         <tr>
           <td><code>L_LINEAR + P_LINEAR</code> (trilinear)</td>
           <td>0.0126</td>
-          <td>7.0×</td>
+          <td>7.0x</td>
         </tr>
         <tr>
-          <td>Anisotropic (up to 8×)</td>
+          <td>Anisotropic (up to 8x)</td>
           <td>0.0195</td>
-          <td>10.8×</td>
+          <td>10.8x</td>
         </tr>
       </table>
     </div>
-    <p>Anisotropic is ~1.5× slower than trilinear — each pixel takes up to 8 bilinear taps instead of 2, but only when the footprint is actually elongated.</p>
+    <p>Anisotropic is ~1.5x slower than trilinear, each pixel takes up to 8 bilinear taps instead of 2, but only when the footprint is actually elongated.</p>
 
     <h4>Comparisons</h4>
     <div class="table-wrap">
@@ -941,12 +942,12 @@ return top * (1-t) + bottom * t;</code></pre>
         <tr>
           <th><code>L_ZERO</code> + <code>P_NEAREST</code></th>
           <th><code>L_LINEAR</code> + <code>P_LINEAR</code> (trilinear)</th>
-          <th>Anisotropic (8×)</th>
+          <th>Anisotropic (8x)</th>
         </tr>
         <tr>
           <td><img src="t6-l-zero-p-nearest.png" alt="L_ZERO + P_NEAREST" style="max-width: 200px; width: 100%;"></td>
           <td><img src="t6-l-linear-p-linear.png" alt="L_LINEAR + P_LINEAR (trilinear)" style="max-width: 200px; width: 100%;"></td>
-          <td><img src="t6-l-linear-p-anis.png" alt="Anisotropic (8×)" style="max-width: 200px; width: 100%;"></td>
+          <td><img src="t6-l-linear-p-anis.png" alt="Anisotropic (8x)" style="max-width: 200px; width: 100%;"></td>
         </tr>
       </table>
     </div>
