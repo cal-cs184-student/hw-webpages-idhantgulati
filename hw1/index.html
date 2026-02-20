@@ -495,7 +495,7 @@
 
     <hr>
 
-    <h3>Optimizations <em style="font-weight:400; font-size:0.88em;">[bonus]</em></h3>
+    <h3>Optimizations <span style="font-weight:400; font-style:normal; font-size:0.88em;">[bonus]</span></h3>
     <p>All timings use <code>std::chrono::high_resolution_clock</code>, sample rate = 1. Median across steady-state frames is reported.</p>
 
     <h3><em>v0 - Incremental Edge Functions + Early Exit</em></h3>
@@ -601,7 +601,7 @@
     \[ \text{color}_{out} = \frac{1}{n} \sum_{s=0}^{n-1} \texttt{sample\_buffer}[(y \cdot W + x) \cdot n + s] \]</p>
 
     <h3>Results: <code>basic/test4.svg</code></h3>
-    <p>The screenshots below compare sample rates on a skinny triangle corner, where aliasing is most visible.</p>
+    <!-- <p>The screenshots below compare sample rates on a skinny triangle corner, where aliasing is most visible.</p> -->
     <div class="table-wrap">
       <table>
         <tr>
@@ -620,7 +620,7 @@
 
     <hr>
 
-    <h3>Jittered Supersampling <em style="font-weight:400; font-size:0.88em;">[bonus]</em></h3>
+    <h3>Jittered Supersampling <span style="font-weight:400; font-style:normal; font-size:0.88em;">[bonus]</span></h3>
 
     <h4>Method</h4>
     <p>Grid supersampling places samples at fixed cell centers \(\bigl(\tfrac{s_i + 0.5}{\sqrt{n}},\ \tfrac{s_j + 0.5}{\sqrt{n}}\bigr)\) within each pixel. This regularity can cause structured aliasing: a thin feature that falls exactly between two sample rows is missed by every pixel consistently, making it completely invisible.</p>
@@ -686,7 +686,7 @@
       <figcaption>Cubeman waving, with hierarchical transforms applied to arm segments</figcaption>
     </figure>
 
-    <h3>Viewport Rotation (<code>[</code> / <code>]</code>) <em style="font-weight:400; font-size:0.88em;">[bonus]</em></h3>
+    <h3>Viewport Rotation (<code>[</code> / <code>]</code>) <span style="font-weight:400; font-style:normal; font-size:0.88em;">[bonus]</span></h3>
     <p>Added two keybindings, <code>[</code> and <code>]</code>, that rotate the entire viewport counterclockwise and clockwise by 5° per press. <code>set_view</code> now builds <code>svg_to_ndc</code> as the closed-form product:</p>
     \[ T(0.5,\,0.5) \cdot S\!\left(\frac{1}{2\,\text{span}}\right) \cdot R(\theta) \cdot T(-x,\,-y) \]
     <p>This translates the view center to the origin, rotates by \(\theta\), scales to NDC, and re-centers at \((0.5,\,0.5)\), all as a single \(3 \times 3\) matrix in <code>svg_to_ndc</code>. The existing <code>ndc_to_screen</code> transform then takes over unchanged.</p>
@@ -766,13 +766,13 @@ return top * (1-t) + bottom * t;</code></pre>
         </tr>
         <tr>
           <td><strong>Nearest</strong></td>
-          <td><img src="images/task5_nearest_1.png" alt="nearest-1" style="max-width: 260px; width: 100%;"></td>
-          <td><img src="images/task5_nearest_16.png" alt="nearest-16" style="max-width: 260px; width: 100%;"></td>
+          <td><img src="t5-zero-1.png" alt="nearest-1" style="max-width: 260px; width: 100%;"></td>
+          <td><img src="t5-zero-16.png" alt="nearest-16" style="max-width: 260px; width: 100%;"></td>
         </tr>
         <tr>
           <td><strong>Bilinear</strong></td>
-          <td><img src="images/task5_bilinear_1.png" alt="bilinear-1" style="max-width: 260px; width: 100%;"></td>
-          <td><img src="images/task5_bilinear_16.png" alt="bilinear-16" style="max-width: 260px; width: 100%;"></td>
+          <td><img src="t5-linear-1.png" alt="bilinear-1" style="max-width: 260px; width: 100%;"></td>
+          <td><img src="t5-linear-16.png" alt="bilinear-16" style="max-width: 260px; width: 100%;"></td>
         </tr>
       </table>
     </div>
@@ -882,7 +882,7 @@ return top * (1-t) + bottom * t;</code></pre>
 
     <hr>
 
-    <h3>Bonus: Anisotropic Filtering</h3>
+    <h3>Anisotropic Filtering <span style="font-weight:400; font-style:normal; font-size:0.88em;">[bonus]</span></h3>
 
     <h4>Why not Summed Area Tables?</h4>
     <p>SAT can only average over axis-aligned rectangles. For diagonal footprints (the exact case where better filtering matters), the bounding rectangle is much larger than the actual footprint, causing over-blur. It also requires ~3× extra memory for floating-point prefix sums. The quality gain over trilinear is marginal.</p>
