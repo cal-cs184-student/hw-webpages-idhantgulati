@@ -692,6 +692,11 @@
     \[ T(0.5,\,0.5) \cdot S\!\left(\frac{1}{2\,\text{span}}\right) \cdot R(\theta) \cdot T(-x,\,-y) \]
     <p>This translates the view center to the origin, rotates by \(\theta\), scales to NDC, and re-centers at \((0.5,\,0.5)\), all as a single \(3 \times 3\) matrix in <code>svg_to_ndc</code>. The existing <code>ndc_to_screen</code> transform then takes over unchanged.</p>
     <p>To support panning and zooming after adding rotation, <code>view_cx</code>, <code>view_cy</code>, <code>view_span_state</code>, and <code>view_angle</code> are now stored explicitly for each SVG in <code>drawrend.h</code>, and <code>move_view</code> reads from those instead of extracting them from the matrix.</p>
+    
+    <figure>
+      <img src="t3-rotated-robot.png" alt="Cubeman waving" style="max-width: 480px;">
+      <figcaption>Viewport rotation: Cubeman with the scene rotated using the new keyboard shortcuts.</figcaption>
+    </figure>
   </section>
 
   <!-- Task 4 -->
