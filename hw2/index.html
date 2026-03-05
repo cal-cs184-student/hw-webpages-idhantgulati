@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CS 184 Homework 1: Rasterizer — Idhant Gulati</title>
+  <title>CS 184 Homework 1: Rasterizer - Idhant Gulati</title>
   <meta name="description" content="CS 184 Homework 1 writeup by Idhant Gulati: implementing a software rasterizer with supersampling, transforms, and texture mapping.">
   <meta name="author" content="Idhant Gulati">
   <link rel="canonical" href="https://cs-184.idhant.xyz/hw1/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="article">
-  <meta property="og:title" content="CS 184 Homework 1: Rasterizer — Idhant Gulati">
+  <meta property="og:title" content="CS 184 Homework 1: Rasterizer - Idhant Gulati">
   <meta property="og:description" content="CS 184 Homework 1 writeup by Idhant Gulati: implementing a software rasterizer with supersampling, transforms, and texture mapping.">
   <meta property="og:url" content="https://cs-184.idhant.xyz/hw1/">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="CS 184 Homework 1: Rasterizer — Idhant Gulati">
+  <meta name="twitter:title" content="CS 184 Homework 1: Rasterizer - Idhant Gulati">
   <meta name="twitter:description" content="CS 184 Homework 1 writeup by Idhant Gulati: implementing a software rasterizer with supersampling, transforms, and texture mapping.">
 
   <!-- MathJax 3 - crisp, modern LaTeX rendering -->
@@ -250,7 +250,7 @@
     }
 
     /* ── Sections ────────────────────────────────────────────── */
-    .section { margin-bottom: 80px; }
+    .section { margin-bottom: 80px; scroll-margin-top: 68px; }
 
     .section-label {
       display: flex; align-items: baseline; gap: 14px;
@@ -433,7 +433,8 @@
     <a href="../index.html">Home</a>
     <span style="width: 1px; height: 18px; background: var(--border); margin: 0 6px; flex-shrink: 0;"></span>
     <a href="#overview">Overview</a>
-    <a href="#task1">Task 1</a>
+    <a href="#task1">Section 1</a>
+    <a href="#task2">Section 2</a>
     <button id="theme-toggle" aria-label="Toggle dark mode">
       <i class="fas fa-moon"></i><span>Dark</span>
     </button>
@@ -443,7 +444,7 @@
 <!-- ── Hero ─────────────────────────────────────────────────── -->
 <header class="hero">
   <div class="hero-inner">
-    <div class="pill">CS 184 / 284A &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; HW 2</div>
+    <div class="pill">CS 184 &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; HW 2</div>
     <h1>Mesh Edit</h1>
     <div class="hero-divider"></div>
     <div class="hero-meta">
@@ -454,8 +455,8 @@
       <a href="https://cs-184.idhant.xyz/" target="_blank">
         <i class="fas fa-globe"></i>cs-184.idhant.xyz
       </a>
-      <a href="https://github.com/cal-cs184-student/hw1-rasterizer-idhant" target="_blank">
-        <i class="fab fa-github"></i>cal-cs184-student/hw1-rasterizer-idhant
+      <a href="https://github.com/cal-cs184-student/hw2-meshedit-idhantgulati" target="_blank">
+        <i class="fab fa-github"></i>cal-cs184-student/hw2-meshedit-idhantgulati
       </a>
     </div>
 
@@ -473,14 +474,13 @@
     <div class="section-label">
       <h2>Overview</h2>
     </div>
-    <p>This is a rasterizer built from scratch. I started with drawing basic triangles, then added features step by step: supersampling for antialiasing, 2D transformations, color interpolation, texture mapping (nearest and bilinear), and mipmap-based texture sampling. I also included full trilinear and anisotropic filtering. As a bonus, I optimized edge functions for speed, added jittered supersampling, viewport rotation, and reused mipmaps for anisotropic filtering.</p>
-    <p>Each technique helps reduce aliasing in a different way: supersampling smooths out coverage in screen space, bilinear filtering blends texture samples, and mipmaps help when shrinking textures. Using these together shows how they complement each other—no single method solves all aliasing problems.</p>
+    <p>This homework covers two topics in geometric modeling. The first section builds up Bezier curves and surfaces using de Casteljau subdivision, starting with 1D recursive linear interpolation and extending it to a separable two-pass algorithm for evaluating points on Bezier surfaces. The second section dives into the half-edge mesh data structure, implementing area-weighted vertex normals for smooth shading, edge flips and splits for local mesh editing, and Loop subdivision for mesh upsampling. Bonuses include boundary edge splits, boundary-aware Loop subdivision, and a modified Butterfly subdivision scheme.</p>
   </section>
 
   <!-- Task 1 -->
   <section class="section" id="task1">
     <div class="section-label">
-      <span class="section-tag">Task 1</span>
+      <span class="section-tag">§ 1</span>
       <h2>Bezier Curves with 1D de Casteljau Subdivision</h2>
     </div>
 
@@ -507,27 +507,27 @@
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
       <figure style="margin: 0;">
         <img src="s1-p1-0.png" alt="Level 0: Original control points">
-        <figcaption>Level 0 — Original 6 control points</figcaption>
+        <figcaption>Level 0 - Original 6 control points</figcaption>
       </figure>
       <figure style="margin: 0;">
         <img src="s1-p1-1.png" alt="Level 1: First lerp">
-        <figcaption>Level 1 — 5 intermediate points after first lerp</figcaption>
+        <figcaption>Level 1 - 5 intermediate points after first lerp</figcaption>
       </figure>
       <figure style="margin: 0;">
         <img src="s1-p1-2.png" alt="Level 2: 4 intermediate points">
-        <figcaption>Level 2 — 4 intermediate points</figcaption>
+        <figcaption>Level 2 - 4 intermediate points</figcaption>
       </figure>
       <figure style="margin: 0;">
         <img src="s1-p1-3.png" alt="Level 3: 3 intermediate points">
-        <figcaption>Level 3 — 3 intermediate points</figcaption>
+        <figcaption>Level 3 - 3 intermediate points</figcaption>
       </figure>
       <figure style="margin: 0;">
         <img src="s1-p1-4.png" alt="Level 4: 2 intermediate points">
-        <figcaption>Level 4 — 2 intermediate points</figcaption>
+        <figcaption>Level 4 - 2 intermediate points</figcaption>
       </figure>
       <figure style="margin: 0;">
         <img src="s1-p1-5.png" alt="Level 5: Final point">
-        <figcaption>Level 5 — Final single point on the curve (full curve toggled via <code>C</code>)</figcaption>
+        <figcaption>Level 5 - Final single point on the curve (full curve toggled via <code>C</code>)</figcaption>
       </figure>
     </div>
 
@@ -539,13 +539,222 @@
     </figure>
   </section>
 
+  <!-- Section 2 -->
+  <section class="section" id="task2">
+    <div class="section-label">
+      <span class="section-tag">§ 2</span>
+      <h2>Triangle Meshes and Half-Edge Data Structure</h2>
+    </div>
+
+    <!-- Part 3 -->
+    <h3>Part 3: Area-Weighted Vertex Normals</h3>
+
+    <h4>Implementation</h4>
+    <p>To compute a smooth per-vertex normal, I walk all faces incident to the vertex using the half-edge structure. For each face, I grab its three vertex positions via the half-edge chain and compute the cross product of two edge vectors:</p>
+    \[\vec{n}_{face} = (\vec{p_1} - \vec{p_0}) \times (\vec{p_2} - \vec{p_0})\]
+    <p>The magnitude of this cross product is \(2 \times \text{area}\), so it naturally weights the face's normal contribution by area, no separate area calculation needed. I skip boundary half-edges (virtual boundary faces should not contribute). After accumulating all face contributions, I normalize the result to get a unit normal.</p>
+
+    <h4>Results</h4>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p3-pre.png" alt="Teapot flat shading">
+        <figcaption>Flat shading</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p3-post.png" alt="Teapot Phong shading">
+        <figcaption>Phong shading (area-weighted normals)</figcaption>
+      </figure>
+    </div>
+
+    <hr>
+
+    <!-- Part 4 -->
+    <h3>Part 4: Edge Flip</h3>
+
+    <h4>Implementation</h4>
+    <p>An edge flip takes the shared edge \((b,c)\) between triangles \((a,b,c)\) and \((c,b,d)\) and re-connects it as edge \((a,d)\), yielding triangles \((a,d,c)\) and \((d,a,b)\). No elements are created or destroyed, only pointers are rewired.</p>
+    <p>I first label all 6 half-edges, 4 vertices, and 2 faces by walking the half-edge chain from <code>e0-&gt;halfedge()</code>:</p>
+    <pre><code>h0 = e0-&gt;halfedge()          // b→c  (face f0)
+h1 = h0-&gt;next()              // c→a
+h2 = h1-&gt;next()              // a→b
+h3 = h0-&gt;twin()              // c→b  (face f1)
+h4 = h3-&gt;next()              // b→d
+h5 = h4-&gt;next()              // d→c</code></pre>
+    <p>After the flip, <code>h0</code> becomes \(a \to d\) and <code>h3</code> becomes \(d \to a\):</p>
+    <pre><code>f0: (a,d,c)  →  h0(a→d), h5(d→c), h1(c→a)
+f1: (d,a,b)  →  h3(d→a), h2(a→b), h4(b→d)</code></pre>
+    <p>I use <code>setNeighbors</code> to set all 5 fields of every half-edge at once, then update the <code>halfedge</code> pointer for each vertex and face. Boundary edges are rejected immediately.</p>
+
+    <h4>Debugging</h4>
+    <p>Drawing the before/after diagram on paper and labeling every half-edge before writing any code was essential. Setting <strong>all</strong> pointers, even unchanged ones, avoided subtle bugs from stale pointers.</p>
+
+    <h4>Results</h4>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p4-pre.png" alt="Teapot before flips">
+        <figcaption>Before flips</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p4-post.png" alt="Teapot after flips">
+        <figcaption>After flips</figcaption>
+      </figure>
+    </div>
+
+    <hr>
+
+    <!-- Part 5 -->
+    <h3>Part 5: Edge Split</h3>
+
+    <h4>Implementation</h4>
+    <p>A split inserts a new midpoint vertex \(m\) on edge \((b,c)\) and connects it to the opposing vertices, turning 2 triangles into 4. This creates new mesh elements: <strong>1 vertex, 3 edges, 2 faces, and 6 half-edges</strong>.</p>
+    <p><strong>New vertex position:</strong></p>
+    \[m.\text{position} = \frac{b.\text{position} + c.\text{position}}{2}\]
+    <p><strong>New triangles</strong> (reusing existing half-edges where possible):</p>
+    <pre><code>f0: (a, b, m)  →  h2(a→b),   h0(b→m),   h_ma(m→a)
+f2: (m, c, a)  →  h_mc(m→c), h1(c→a),   h_am(a→m)
+f1: (m, b, d)  →  h3(m→b),   h4(b→d),   h_dm(d→m)
+f3: (c, m, d)  →  h_cm(c→m), h_md(m→d), h5(d→c)</code></pre>
+    <p>The original edge <code>e0</code> is reused for the \(b \to m\) / \(m \to b\) half-edges. The 3 new edges are \(e_{mc}\), \(e_{ma}\), and \(e_{md}\).</p>
+
+    <h4>Boundary Edge Splits [bonus]</h4>
+    <p>For boundary edges, only one side has a real face. The implementation orients <code>h0</code> to always point into the real face first:</p>
+    <pre><code>if (h0-&gt;face()-&gt;isBoundary()) h0 = h0-&gt;twin();</code></pre>
+    <p>Then it creates only 2 real triangles from the one real face, and splices the new boundary half-edges into the existing boundary loop. The virtual boundary face stays a single polygon, it just gains one extra vertex.</p>
+
+    <h4>Debugging</h4>
+    <p><code>m-&gt;halfedge()</code> must point along the original split edge direction, so it is set to <code>h3</code> (\(m \to b\)).</p>
+    <p>For the boundary case, a small loop walks the boundary polygon to find the predecessor of <code>h3</code> so the new <code>h_cm</code> can be correctly spliced in.</p>
+    <p>One subtle bug: vertex \(d\) must be read from <code>h5-&gt;vertex()</code> (since <code>h5</code> is \(d \to c\)), <strong>not</strong> <code>h4-&gt;vertex()</code> (which is \(b\), the source of \(b \to d\)). Getting this wrong silently connected the wrong vertex, causing corrupted geometry that was hard to spot until edges were flipped on the split mesh.</p>
+
+    <h4>Results</h4>
+    <p><strong>Edge splits only:</strong></p>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p5-pre-es.png" alt="Before splits">
+        <figcaption>Before splits</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p5-post-es.png" alt="After splits">
+        <figcaption>After splits</figcaption>
+      </figure>
+    </div>
+    <p><strong>Combined edge splits and flips:</strong></p>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p5-pre-esf.png" alt="Before splits and flips">
+        <figcaption>Before</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p5-post-esf.png" alt="After splits and flips">
+        <figcaption>After splits + flips</figcaption>
+      </figure>
+    </div>
+    <p><strong>Boundary edge splits:</strong></p>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p5-pre-bs.png" alt="Before boundary split">
+        <figcaption>Before boundary split</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p5-post-bs.png" alt="After boundary split">
+        <figcaption>After boundary split</figcaption>
+      </figure>
+    </div>
+
+    <hr>
+
+    <!-- Part 6 -->
+    <h3>Part 6: Loop Subdivision for Mesh Upsampling</h3>
+
+    <h4>Implementation</h4>
+    <p>Loop subdivision is done in four steps, computing positions before subdividing:</p>
+    <p><strong>Step A - Precompute new positions on the original mesh:</strong></p>
+    <p>For each old vertex with degree \(n\):</p>
+    \[\text{newPosition} = (1 - n \cdot u) \cdot \text{pos} + u \cdot \sum_{\text{neighbors}} \text{pos}_i\]
+    <p>where \(u = \frac{3}{16}\) if \(n = 3\), else \(u = \frac{3}{8n}\).</p>
+    <p>For each edge, the new midpoint position:</p>
+    \[\text{newPosition} = \frac{3}{8}(A + B) + \frac{1}{8}(C + D)\]
+    <p>where \(A, B\) are the edge endpoints and \(C, D\) are the opposite vertices of the two adjacent triangles. All stored in <code>newPosition</code> without modifying <code>position</code>, since the averages must use original positions.</p>
+
+    <h4>Boundary Mesh Support [bonus]</h4>
+    <p>For boundary edges, the midpoint position is simply \(\frac{A+B}{2}\). Boundary vertices keep their original positions unchanged. This reuses the boundary edge split support from Part 5.</p>
+
+    <p><strong>Step B - Split every original edge:</strong></p>
+    <p>All original edges are collected into a list first to avoid splitting newly created edges. Each split midpoint's <code>newPosition</code> is set from the edge's precomputed value.</p>
+    <p><strong>Step C - Flip new edges connecting an old and a new vertex:</strong></p>
+    <p>Each new edge (<code>isNew</code>) is flipped if its two endpoints differ in <code>isNew</code> status, completing the 4-1 subdivision pattern.</p>
+    <p><strong>Step D - Apply positions:</strong></p>
+    <p>Every vertex's <code>position</code> is set to its <code>newPosition</code>.</p>
+
+    <h4>Observations on Sharp Features</h4>
+    <p>After loop subdivision, sharp corners and edges get smoothed out as the weighted average pulls vertices toward their neighbors. Pre-splitting edges along a sharp crease before subdividing partially preserves the feature.</p>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p6-sf-s-og.png" alt="Sharp original">
+        <figcaption>Original (sharp corners)</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-sf-s-1sd.png" alt="After 1 subdivision">
+        <figcaption>After 1 subdivision</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-sf-s-3sd.png" alt="After 3 subdivisions">
+        <figcaption>After 3 subdivisions</figcaption>
+      </figure>
+    </div>
+
+    <h4>Cube Symmetry</h4>
+    <p>Subdividing <code>dae/cube.dae</code> repeatedly produces an asymmetric result. Each cube face has a single diagonal, and these diagonals are not arranged symmetrically across all 6 faces. Since Loop weights depend on vertex degree, asymmetric connectivity causes vertices to be pulled unevenly.</p>
+    <p><strong>Fix:</strong> Pre-process each face to have an X-pattern (split each face diagonal). This gives every corner vertex the same degree and neighborhood structure, so subdivision is uniform and the cube stays symmetric.</p>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p6-lsd-0.png" alt="Asymmetric cube subdivision">
+        <figcaption>Asymmetric subdivision</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-lsd-1.png" alt="Original cube">
+        <figcaption>Original (base)</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-lsd-2.png" alt="Symmetric cube level 1">
+        <figcaption>Symmetric - after 1</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-lsd-3.png" alt="Symmetric cube level 3">
+        <figcaption>Symmetric - after 3</figcaption>
+      </figure>
+    </div>
+
+    <h4>Modified Butterfly Subdivision [bonus]</h4>
+    <p>I implemented the <strong>modified Butterfly scheme</strong> (<code>butterfly_upsample</code>). Unlike Loop, Butterfly is <em>interpolating</em>, old vertices keep their positions exactly, so the subdivided mesh passes through the original vertices.</p>
+    <p>The new midpoint uses an 8-point stencil when both edge endpoints are regular (degree 6) and no adjacent face is on the boundary:</p>
+    \[m = \frac{1}{2}(A+B) + \frac{1}{8}(C+D) - \frac{1}{16}(e_0 + e_1 + f_0 + f_1)\]
+    <p>where \(C, D\) are the immediate wing vertices and \(e_0, e_1, f_0, f_1\) are the outer-ring vertices. For irregular vertices or near boundaries, a 4-point fallback is used:</p>
+    \[m = \frac{3}{8}(A+B) + \frac{1}{8}(C+D)\]
+    <p>The split/flip/apply steps are identical to Loop subdivision.</p>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="s2-p6-b-0.png" alt="Original">
+        <figcaption>Original</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-b-1.png" alt="Loop subdivision">
+        <figcaption>Loop subdivision</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="s2-p6-b-2.png" alt="Butterfly subdivision">
+        <figcaption>Butterfly subdivision</figcaption>
+      </figure>
+    </div>
+  </section>
+
 
 </main>
 
 <footer>
   <a href="../index.html">← All Homeworks</a>
   &nbsp;·&nbsp;
-  CS 184 / 284A &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; UC Berkeley
+  CS 184 &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; UC Berkeley
   <div style="margin-top: 10px; font-size: 0.74rem; color: #aaa;">
     Page design adapted from <a href="https://nerfies.github.io" target="_blank" style="color: #aaa;">Nerfies</a>
     (<a href="https://github.com/nerfies/nerfies.github.io" target="_blank" style="color: #aaa;">source</a>),
