@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>cs-184/hw2</title>
-  <meta name="description" content="CS 184 Homework 2 writeup by Idhant Gulati: implementing Bezier curves, surfaces, and half-edge mesh data structures for geometric modeling.">
+  <title>cs-184/hw3</title>
+  <meta name="description" content="CS 184 Homework 3 writeup by Idhant Gulati.">
   <meta name="author" content="Idhant Gulati">
-  <link rel="canonical" href="https://cs-184.idhant.xyz/cs-184/hw2/">
+  <link rel="canonical" href="https://cs-184.idhant.xyz/cs-184/hw3/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="article">
-  <meta property="og:title" content="cs-184/hw2">
-  <meta property="og:description" content="CS 184 Homework 2 writeup by Idhant Gulati: implementing Bezier curves, surfaces, and half-edge mesh data structures for geometric modeling.">
-  <meta property="og:url" content="https://cs-184.idhant.xyz/cs-184/hw2/">
+  <meta property="og:title" content="cs-184/hw3">
+  <meta property="og:description" content="CS 184 Homework 3 writeup by Idhant Gulati.">
+  <meta property="og:url" content="https://cs-184.idhant.xyz/cs-184/hw3/">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="cs-184/hw2">
-  <meta name="twitter:description" content="CS 184 Homework 2 writeup by Idhant Gulati: implementing Bezier curves, surfaces, and half-edge mesh data structures for geometric modeling.">
+  <meta name="twitter:title" content="cs-184/hw3">
+  <meta name="twitter:description" content="CS 184 Homework 3 writeup by Idhant Gulati.">
 
   <!-- MathJax 3 - crisp, modern LaTeX rendering -->
   <script>
@@ -435,6 +435,8 @@
     <a href="#overview">Overview</a>
     <a href="#task1">Section 1</a>
     <a href="#task2">Section 2</a>
+    <a href="#task3">Section 3</a>
+    <a href="#task5">Section 5</a>
     <button id="theme-toggle" aria-label="Toggle dark mode">
       <i class="fas fa-moon"></i><span>Dark</span>
     </button>
@@ -444,8 +446,8 @@
 <!-- ── Hero ─────────────────────────────────────────────────── -->
 <header class="hero">
   <div class="hero-inner">
-    <div class="pill">CS 184 &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; HW 2</div>
-    <h1>Mesh Edit</h1>
+    <div class="pill">CS 184 &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; HW 3</div>
+    <h1>Path Tracer</h1>
     <div class="hero-divider"></div>
     <div class="hero-meta">
       <span>Idhant Gulati &nbsp;·&nbsp; <span id="email-copy" title="Click to copy" style="cursor: pointer; user-select: none;">idhant [at] berkeley [dot] edu</span></span>
@@ -455,13 +457,13 @@
       <a href="https://cs-184.idhant.xyz/" target="_blank">
         <i class="fas fa-globe"></i>cs-184.idhant.xyz
       </a>
-      <a href="https://github.com/cal-cs184-student/hw2-meshedit-idhantgulati" target="_blank">
-        <i class="fab fa-github"></i>cal-cs184-student/hw2-meshedit-idhantgulati
+      <a href="https://github.com/cal-cs184-student/hw3-pathtracer-idhantgulati" target="_blank">
+        <i class="fab fa-github"></i>cal-cs184-student/hw3-pathtracer-idhantgulati
       </a>
     </div>
 
-    <div class="hero-img">
-      <img src="teapot.png">
+    <div class="hero-img" style="transform: scale(1.25); display: inline-block;">
+      <img src="cornell.png" style="width: 500px; max-width: 98%; border-radius: 2px;">
     </div>
   </div>
 </header>
@@ -474,71 +476,401 @@
     <div class="section-label">
       <h2>Overview</h2>
     </div>
-    <p>Overview placeholder.</p>
+    <p>This write-up follows a CPU path tracer from jittered camera rays and Möller–Trumbore triangle intersection—checked with normal-shading previews on small <code>.dae</code> scenes—through a BVH built with longest-axis centroid splits and slab bbox tests, where timing tables show the payoff on larger models. Direct lighting comes next, comparing uniform hemisphere sampling with importance sampling over lights and how the number of light rays affects soft-shadow noise. It closes with adaptive sampling in <code>raytrace_pixel</code>: batched variance estimates, a confidence-interval stopping rule, and rate images that show where extra samples were still needed next to the final bunny and spheres renders.</p>
   </section>
 
-  <!-- Task 1 -->
+  <!-- Section 1 -->
   <section class="section" id="task1">
     <div class="section-label">
       <span class="section-tag">§ 1</span>
-      <h2>Section 1</h2>
+      <h2>Ray Generation and Scene Intersection</h2>
     </div>
 
-    <h3>Heading</h3>
-    <p>Task 1 placeholder text.</p>
-    <p>Task 1 placeholder text.</p>
+    <h3>Walk through the ray generation and primitive intersection parts of the rendering pipeline.</h3>
 
-    <h3>Heading</h3>
-    <p>Task 1 placeholder text.</p>
-    <pre><code>// placeholder</code></pre>
-    <p>Task 1 placeholder text.</p>
+    <p><strong>Ray Generation (<code>camera.cpp</code> / <code>pathtracer.cpp</code>)</strong></p>
 
-    <h3>Heading</h3>
-    <p>Task 1 placeholder text.</p>
+    <p>For each pixel \((x, y)\), we generate <code>ns_aa</code> jittered samples using a uniform grid sampler. Each sample is offset within the pixel and normalized to \([0,1]^2\) before being passed to <code>Camera::generate_ray</code>.</p>
+
+    <p>Inside <code>generate_ray</code>, the normalized image coordinate \((x, y)\) is mapped to a point on the virtual sensor in camera space, which sits on the \(Z = -1\) plane. The sensor spans:</p>
+    \[
+\left[-\tan\!\left(\tfrac{\text{hFov}}{2}\right),\ \tan\!\left(\tfrac{\text{hFov}}{2}\right)\right] \times \left[-\tan\!\left(\tfrac{\text{vFov}}{2}\right),\ \tan\!\left(\tfrac{\text{vFov}}{2}\right)\right]
+\]
+
+    <p>So the camera-space sensor point is:</p>
+    \[
+p_\text{cam} = \left((2x-1)\tan\!\tfrac{\text{hFov}}{2},\ (2y-1)\tan\!\tfrac{\text{vFov}}{2},\ -1\right)
+\]
+
+    <p>This direction is rotated into world space via the camera-to-world matrix \(c2w\) and normalized. The resulting ray originates at <code>pos</code> with <code>min_t = nClip</code>, <code>max_t = fClip</code>.</p>
+
+    <p>Back in <code>raytrace_pixel</code>, the radiance estimates from all samples are averaged and written to <code>sampleBuffer</code>.</p>
+
+    <p><strong>Primitive Intersection</strong></p>
+
+    <p>Each ray is tested against the scene's primitives (triangles, spheres). Intersections are only valid in \([t_\text{min}, t_\text{max}]\). When a closer hit is found, <code>ray.max_t</code> is tightened so subsequent tests can early-exit. The closest intersection fills an <code>Intersection</code> struct with \(t\), surface normal, primitive pointer, and BSDF.</p>
+
+    <hr>
+
+    <h3>Explain the triangle intersection algorithm you implemented in your own words.</h3>
+
+    <p>The implementation uses the <strong>Möller–Trumbore algorithm</strong>, which solves the ray–triangle intersection directly in barycentric coordinates without explicitly computing the plane equation.</p>
+
+    <p>Given a ray \(\mathbf{r}(t) = \mathbf{o} + t\mathbf{d}\) and triangle vertices \(P_1, P_2, P_3\), define edge vectors:</p>
+    \[
+\mathbf{e}_1 = P_2 - P_1, \quad \mathbf{e}_2 = P_3 - P_1
+\]
+
+    <p>We solve the system \(\mathbf{o} + t\mathbf{d} = (1-u-v)P_1 + uP_2 + vP_3\) via Cramer's rule:</p>
+
+    \[
+\begin{pmatrix} t \\ u \\ v \end{pmatrix} = \frac{1}{\mathbf{e}_1 \cdot \mathbf{h}} \begin{pmatrix} \mathbf{e}_2 \cdot \mathbf{q} \\ \mathbf{s} \cdot \mathbf{h} \\ \mathbf{d} \cdot \mathbf{q} \end{pmatrix}
+\]
+
+    <p>where \(\mathbf{h} = \mathbf{d} \times \mathbf{e}_2\), \(\mathbf{s} = \mathbf{o} - P_1\), \(\mathbf{q} = \mathbf{s} \times \mathbf{e}_1\).</p>
+
+    <p>The intersection is valid if \(u \in [0,1]\), \(v \in [0,1]\), \(u+v \le 1\), and \(t \in [t_\text{min}, t_\text{max}]\). The surface normal is interpolated from the vertex normals using the barycentric weights \((1-u-v, u, v)\):</p>
+    \[
+\mathbf{n} = \operatorname{normalize}\!\left((1-u-v)\,\mathbf{n}_1 + u\,\mathbf{n}_2 + v\,\mathbf{n}_3\right)
+\]
+
+    <hr>
+
+    <h3>Images with Normal Shading</h3>
+
+    <p>Below are a few small <code>.dae</code> files rendered with normal shading (each RGB channel encodes the surface normal direction).</p>
 
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
       <figure style="margin: 0;">
-        <img src="s1-p1-0.png" alt="">
-        <figcaption>Caption</figcaption>
+        <img src="images/p1_CBempty.png" alt="CBempty">
+        <figcaption><code>CBempty.dae</code></figcaption>
       </figure>
       <figure style="margin: 0;">
-        <img src="s1-p1-1.png" alt="">
-        <figcaption>Caption</figcaption>
+        <img src="images/p1_CBspheres.png" alt="CBspheres">
+        <figcaption><code>CBspheres_lambertian.dae</code></figcaption>
       </figure>
       <figure style="margin: 0;">
-        <img src="s1-p1-2.png" alt="">
-        <figcaption>Caption</figcaption>
+        <img src="images/p1_banana.png" alt="banana">
+        <figcaption><code>banana.dae</code></figcaption>
       </figure>
       <figure style="margin: 0;">
-        <img src="s1-p1-3.png" alt="">
-        <figcaption>Caption</figcaption>
-      </figure>
-      <figure style="margin: 0;">
-        <img src="s1-p1-4.png" alt="">
-        <figcaption>Caption</figcaption>
-      </figure>
-      <figure style="margin: 0;">
-        <img src="s1-p1-5.png" alt="">
-        <figcaption>Caption</figcaption>
+        <img src="images/p1_cow.png" alt="cow">
+        <figcaption><code>cow.dae</code></figcaption>
       </figure>
     </div>
-
-    <h3>Heading</h3>
-    <p>Task 1 placeholder text.</p>
-    <figure>
-      <img src="s1-p1-6t.gif" alt="">
-      <figcaption>Caption</figcaption>
-    </figure>
   </section>
 
   <!-- Section 2 -->
   <section class="section" id="task2">
     <div class="section-label">
       <span class="section-tag">§ 2</span>
-      <h2>Section 2</h2>
+      <h2>Bounding Volume Hierarchy</h2>
     </div>
+
+    <h3>Walk through your BVH construction algorithm and explain the heuristic you chose for picking the splitting point.</h3>
+
+    <p><strong>Construction (<code>bvh.cpp</code> — <code>BVHAccel::construct_bvh</code>)</strong></p>
+
+    <ol>
+      <li>Compute the bounding box over all primitives in \([\text{start}, \text{end})\).</li>
+      <li>If the primitive count \(n \le \text{max\_leaf\_size}\), create a leaf node and return.</li>
+      <li>Otherwise, pick the <strong>longest axis</strong> of the bounding box extent:
+        \[
+\text{axis} = \arg\max_{k \in \{x,y,z\}} \text{extent}_k
+\]
+      </li>
+      <li>Set the split threshold to the <strong>centroid of the bounding box</strong> along that axis (spatial median):
+        \[
+\text{split} = \text{bbox.centroid}()[\text{axis}]
+\]
+      </li>
+      <li>Partition primitives so that those whose own centroid is \(\lt \text{split}\) go left, the rest go right.</li>
+      <li><strong>Degenerate case:</strong> if all primitives end up on one side (e.g., many coincident centroids), force a median split at \(n/2\) to prevent infinite recursion.</li>
+      <li>Recurse on the two halves to build <code>node->l</code> and <code>node->r</code>.</li>
+    </ol>
+
+    <p><strong>Why longest-axis centroid split?</strong></p>
+
+    <p>Splitting along the longest axis keeps the two child boxes as compact as possible, reducing overlap and wasted traversal. The centroid threshold is a simple \(O(n)\) partition with no extra memory, and the median fallback ensures the tree always terminates.</p>
+
+    <hr>
+
+    <p><strong>BBox intersection (<code>bbox.cpp</code> — <code>BBox::intersect</code>)</strong></p>
+
+    <p>Uses the <strong>slab method</strong>: for each axis, compute the ray's entry and exit \(t\) against the axis-aligned planes using precomputed <code>r.inv_d</code>. Then:</p>
+    \[
+t_\text{near} = \max\!\left(\min(t_{x1}, t_{x2}),\ \min(t_{y1}, t_{y2}),\ \min(t_{z1}, t_{z2})\right)
+\]
+    \[
+t_\text{far}  = \min\!\left(\max(t_{x1}, t_{x2}),\ \max(t_{y1}, t_{y2}),\ \max(t_{z1}, t_{z2})\right)
+\]
+
+    <p>The ray hits the box iff \(t_\text{near} \le t_\text{far}\) and \([t_\text{near}, t_\text{far}]\) overlaps the ray's valid interval.</p>
+
+    <hr>
+
+    <p><strong>BVH traversal (<code>bvh.cpp</code> — <code>BVHAccel::has_intersection</code> / <code>intersect</code>)</strong></p>
+
+    <p>Both functions start by testing the ray against <code>node->bb</code>; if it misses, they return immediately. At a leaf, all contained primitives are tested. At an interior node, both children are recursed.</p>
+
+    <ul>
+      <li><code>has_intersection</code> short-circuits: returns <code>true</code> as soon as any primitive is hit.</li>
+      <li><code>intersect</code> always checks both children so it can find the <strong>closest</strong> hit (ray's <code>max_t</code> is progressively tightened by primitive hits, so the far child is still skipped if its bbox miss is beyond <code>max_t</code>).</li>
+    </ul>
+
+    <hr>
+
+    <h3>Images with Normal Shading for Large <code>.dae</code> Files</h3>
+
+    <p>These scenes are impractical to render without BVH — they range from 50K to 133K primitives.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p2_maxplanck.png" alt="maxplanck">
+        <figcaption><code>maxplanck.dae</code> (50,801 primitives)</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p2_CBlucy.png" alt="CBlucy">
+        <figcaption><code>CBlucy.dae</code> (133,796 primitives)</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p2_peter.png" alt="peter">
+        <figcaption><code>peter.dae</code></figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p2_beast.png" alt="beast">
+        <figcaption><code>beast.dae</code></figcaption>
+      </figure>
+    </div>
+
+    <hr>
+
+    <h3>Rendering Time Comparison: With vs. Without BVH</h3>
+
+    <p>All timings: 800×600, <code>-s 1</code>, <code>-t 8</code> (8 threads), normal shading. Brute-force traversal tests every primitive per ray; BVH traversal prunes subtrees via bbox tests.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Scene</th>
+            <th>Primitives</th>
+            <th>Without BVH (s)</th>
+            <th>With BVH (s)</th>
+            <th>Speedup</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>teapot.dae</code></td>
+            <td>2,464</td>
+            <td>0.84</td>
+            <td>0.04</td>
+            <td>~19x</td>
+          </tr>
+          <tr>
+            <td><code>cow.dae</code></td>
+            <td>5,856</td>
+            <td>2.38</td>
+            <td>0.03</td>
+            <td>~73x</td>
+          </tr>
+          <tr>
+            <td><code>maxplanck.dae</code></td>
+            <td>50,801</td>
+            <td>21.35</td>
+            <td>0.04</td>
+            <td>~493x</td>
+          </tr>
+          <tr>
+            <td><code>CBlucy.dae</code></td>
+            <td>133,796</td>
+            <td>127.48</td>
+            <td>0.06</td>
+            <td>~2111x</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>BVH reduces intersection tests from \(O(n)\) per ray to \(O(\log n)\) on average. The speedup scales roughly linearly with primitive count: <code>teapot</code> sees ~19x while <code>CBlucy</code> (54x more primitives) sees ~2100x. Without BVH, each ray must test all primitives regardless of geometry; with BVH, the hierarchy prunes entire subtrees whenever a ray misses a bounding box, keeping traversal cost nearly constant even as scene complexity grows.</p>
   </section>
 
+  <!-- Section 3 -->
+  <section class="section" id="task3">
+    <div class="section-label">
+      <span class="section-tag">§ 3</span>
+      <h2>Direct Illumination</h2>
+    </div>
+
+    <h3>Walk through both implementations of the direct lighting function.</h3>
+
+    <p><strong>Uniform Hemisphere Sampling (<code>estimate_direct_lighting_hemisphere</code>)</strong></p>
+
+    <p>For each hit point, we draw <code>num_samples</code> directions uniformly from the hemisphere in object space using <code>hemisphereSampler->get_sample()</code>. Each sampled direction is transformed to world space and used to cast a shadow ray from <code>hit_p</code> (with <code>min_t = EPS_F</code> to avoid self-intersection). If that ray hits a surface that emits light (<code>get_emission().norm() > 0</code>), we accumulate the Monte Carlo contribution using the reflection equation:</p>
+
+    \[
+L_\text{out} \mathrel{+}= f_r(\mathbf{w}_\text{out}, \mathbf{w}_\text{in}) \cdot L_i \cdot \cos\theta \cdot \frac{1}{p(\mathbf{w}_\text{in})}
+\]
+
+    <p>where \(p(\mathbf{w}_\text{in}) = \frac{1}{2\pi}\) for a uniform hemisphere, so the term simplifies to \(\times 2\pi\). The sum is divided by <code>num_samples</code> at the end.</p>
+
+    <hr>
+
+    <p><strong>Importance Sampling Lights (<code>estimate_direct_lighting_importance</code>)</strong></p>
+
+    <p>Instead of sampling random directions, we iterate over every light in the scene. For each light we draw <code>ns_area_light</code> samples (or just 1 for delta/point lights, since all samples would be identical). For each sample, <code>light->sample_L(hit_p, &amp;wi, &amp;distToLight, &amp;pdf)</code> gives us the incoming radiance \(L_i\), the world-space direction \(\mathbf{w}_i\) toward the light, the distance, and the PDF.</p>
+
+    <p>We convert \(\mathbf{w}_i\) to object space to compute \(\cos\theta = w_{i,z}\) and skip it if \(\cos\theta \le 0\) (light behind the surface). We then cast a shadow ray with <code>max_t = distToLight - EPS_F</code>; if it is unoccluded, we accumulate:</p>
+
+    \[
+L_\text{out} \mathrel{+}= f_r(\mathbf{w}_\text{out}, \mathbf{w}_\text{in}) \cdot L_i \cdot \frac{\cos\theta}{p(\mathbf{w}_\text{in})}
+\]
+
+    <p>Each light's contribution is averaged over its <code>num_light_samples</code> before being added to the total.</p>
+
+    <hr>
+
+    <h3>Both Implementations Rendered</h3>
+
+    <p><code>CBbunny.dae</code> at 480×360, <code>-s 64 -l 32 -m 6 -t 8</code></p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p3_bunny_H.png" alt="bunny hemisphere">
+        <figcaption>Hemisphere Sampling (<code>-H</code>)</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p3_bunny_I.png" alt="bunny importance">
+        <figcaption>Importance Sampling</figcaption>
+      </figure>
+    </div>
+
+    <hr>
+
+    <h3>Noise Levels vs. Light Rays (<code>-l</code>) — Importance Sampling</h3>
+
+    <p><code>CBbunny.dae</code> at 480×360, <code>-s 1 -m 1 -t 8</code>, importance sampling only.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p3_bunny_l1.png" alt="l=1">
+        <figcaption>1 light ray</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p3_bunny_l4.png" alt="l=4">
+        <figcaption>4 light rays</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p3_bunny_l16.png" alt="l=16">
+        <figcaption>16 light rays</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p3_bunny_l64.png" alt="l=64">
+        <figcaption>64 light rays</figcaption>
+      </figure>
+    </div>
+
+    <p>With only 1 light ray the soft shadow boundary is extremely noisy — each pixel's shadow estimate is a single binary hit/miss. At 4 rays the shadow region is recognizable but still grainy. At 16 rays soft shadows become smooth with mild residual noise, and at 64 rays the penumbra is nearly clean.</p>
+
+    <hr>
+
+    <h3>Uniform Hemisphere vs. Importance Sampling — Comparison</h3>
+
+    <p>At the same sample budget (64 samples per pixel, 32 per light), importance sampling produces a noticeably cleaner image than uniform hemisphere sampling. Hemisphere sampling wastes most samples on directions that never reach the light, so only a small fraction contribute non-zero radiance — this translates to high variance and visible noise even at 64 spp. Importance sampling avoids this entirely: every shadow ray is cast directly toward a light source, so nearly every sample is useful. The result is much lower variance per sample, meaning importance sampling converges to the correct image faster and requires fewer samples to achieve the same quality. The trade-off is that importance sampling requires iterating over all scene lights explicitly, but for typical scenes with a small number of lights this is far more efficient than hoping a random hemisphere direction finds one.</p>
+  </section>
+
+  <!-- Section 5 -->
+  <section class="section" id="task5">
+    <div class="section-label">
+      <span class="section-tag">§ 5</span>
+      <h2>Adaptive Sampling</h2>
+    </div>
+
+    <h3>Overview</h3>
+
+    <p>Monte Carlo path tracing converges at different rates for different pixels. Simple areas (e.g. flat walls directly lit) need few samples to converge, while complex areas (e.g. caustics, sharp shadow boundaries, surfaces with high-frequency illumination variation) need many. Adaptive sampling concentrates samples where they're needed, reducing total render time without sacrificing quality.</p>
+
+    <h3>Implementation</h3>
+
+    <p>The algorithm runs inside <code>raytrace_pixel</code> in <code>pathtracer.cpp</code>. For each pixel, instead of always taking exactly <code>ns_aa</code> samples, it traces samples in batches of <code>samplesPerBatch</code> (default 32), tracking two running statistics:</p>
+
+    \[
+s_1 = \sum_{k=1}^n x_k, \quad s_2 = \sum_{k=1}^n x_k^2
+\]
+
+    <p>where \(x_k = L_k.\text{illum()}\) is the illuminance of the \(k\)-th sample.</p>
+
+    <p>After each batch, it computes the sample mean and variance:</p>
+
+    \[
+\mu = \frac{s_1}{n}, \quad \sigma^2 = \frac{1}{n-1}\left(s_2 - \frac{s_1^2}{n}\right)
+\]
+
+    <p>Then the 95% confidence interval half-width:</p>
+
+    \[
+I = 1.96 \cdot \frac{\sigma}{\sqrt{n}}
+\]
+
+    <p>If \(I \leq \texttt{maxTolerance} \cdot \mu\) (default <code>maxTolerance=0.05</code>), the pixel has converged and sampling stops early. Otherwise it continues up to the maximum <code>ns_aa</code> samples. The actual sample count is written to <code>sampleCountBuffer</code> for the rate image.</p>
+
+    <pre><code>double s1 = 0.0, s2 = 0.0;
+int actual_samples = 0;
+
+for (int i = 0; i &lt; num_samples; i++) {
+    Vector3D L = est_radiance_global_illumination(r);
+    double xk = L.illum();
+    s1 += xk; s2 += xk * xk;
+    actual_samples++;
+
+    if (actual_samples % samplesPerBatch == 0) {
+        double mu    = s1 / actual_samples;
+        double sigma2 = (s2 - s1*s1/actual_samples) / (actual_samples - 1);
+        double I     = 1.96 * sqrt(sigma2 / actual_samples);
+        if (I &lt;= maxTolerance * mu) break;
+    }
+}
+sampleCountBuffer[x + y * sampleBuffer.w] = actual_samples;</code></pre>
+
+    <hr>
+
+    <h3>Results</h3>
+
+    <p>Rendered with <code>-s 2048 -a 64 0.05 -l 1 -m 5 -r 480 360</code>.</p>
+
+    <p>The rate image maps blue → low samples, red → high samples (relative to max 2048).</p>
+
+    <h4>CBbunny</h4>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p5_bunny.png" alt="bunny">
+        <figcaption>Rendered image</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p5_bunny_rate.png" alt="bunny rate">
+        <figcaption>Sample rate</figcaption>
+      </figure>
+    </div>
+
+    <h4>CBspheres_lambertian</h4>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p5_spheres.png" alt="spheres">
+        <figcaption>Rendered image</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p5_spheres_rate.png" alt="spheres rate">
+        <figcaption>Sample rate</figcaption>
+      </figure>
+    </div>
+
+    <p>The rate images show clearly that smooth, uniformly lit regions (flat walls, open ceiling away from the light) converge quickly and appear blue — only a small fraction of 2048 samples are needed. Edges, shadow boundaries, and the surface of the bunny/spheres where indirect lighting varies require more samples and appear green/red. The area light itself converges almost instantly (it always returns the same emission value). This pattern confirms that adaptive sampling efficiently allocates work where variance is high.</p>
+
+    <h2 style="text-align:center;">***</h2>
+  </section>
 
 </main>
 
