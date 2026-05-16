@@ -436,6 +436,7 @@
     <a href="#task1">Section 1</a>
     <a href="#task2">Section 2</a>
     <a href="#task3">Section 3</a>
+    <a href="#task4">Section 4</a>
     <a href="#task5">Section 5</a>
     <button id="theme-toggle" aria-label="Toggle dark mode">
       <i class="fas fa-moon"></i><span>Dark</span>
@@ -476,7 +477,7 @@
     <div class="section-label">
       <h2>Overview</h2>
     </div>
-    <p>This write-up follows a CPU path tracer from jittered camera rays and Möller–Trumbore triangle intersection—checked with normal-shading previews on small <code>.dae</code> scenes—through a BVH built with longest-axis centroid splits and slab bbox tests, where timing tables show the payoff on larger models. Direct lighting comes next, comparing uniform hemisphere sampling with importance sampling over lights and how the number of light rays affects soft-shadow noise. It closes with adaptive sampling in <code>raytrace_pixel</code>: batched variance estimates, a confidence-interval stopping rule, and rate images that show where extra samples were still needed next to the final bunny and spheres renders.</p>
+    <p>This write-up follows a CPU path tracer from jittered camera rays and Möller–Trumbore triangle intersection—checked with normal-shading previews on small <code>.dae</code> scenes—through a BVH built with longest-axis centroid splits and slab bbox tests, where timing tables show the payoff on larger models. Direct lighting comes next, comparing uniform hemisphere sampling with importance sampling over lights and how the number of light rays affects soft-shadow noise. Global illumination extends paths with BSDF sampling, optional per-bounce accumulation, Russian roulette, and studies of direct versus indirect light, bounce depth, and sample count on the Cornell-style bunny and spheres. It closes with adaptive sampling in <code>raytrace_pixel</code>: batched variance estimates, a confidence-interval stopping rule, and rate images that show where extra samples were still needed next to the final bunny and spheres renders.</p>
   </section>
 
   <!-- Section 1 -->
@@ -778,6 +779,239 @@ L_\text{out} \mathrel{+}= f_r(\mathbf{w}_\text{out}, \mathbf{w}_\text{in}) \cdot
     <h3>Uniform Hemisphere vs. Importance Sampling — Comparison</h3>
 
     <p>At the same sample budget (64 samples per pixel, 32 per light), importance sampling produces a noticeably cleaner image than uniform hemisphere sampling. Hemisphere sampling wastes most samples on directions that never reach the light, so only a small fraction contribute non-zero radiance — this translates to high variance and visible noise even at 64 spp. Importance sampling avoids this entirely: every shadow ray is cast directly toward a light source, so nearly every sample is useful. The result is much lower variance per sample, meaning importance sampling converges to the correct image faster and requires fewer samples to achieve the same quality. The trade-off is that importance sampling requires iterating over all scene lights explicitly, but for typical scenes with a small number of lights this is far more efficient than hoping a random hemisphere direction finds one.</p>
+  </section>
+
+  <!-- Section 4 -->
+  <section class="section" id="task4">
+    <div class="section-label">
+      <span class="section-tag">§ 4</span>
+      <h2>Global Illumination</h2>
+    </div>
+
+    <h3>Implementation of the Indirect Lighting Function</h3>
+
+    <p><code>at_least_one_bounce_radiance</code> estimates the total radiance at a hit point from one or more bounces, recursively tracing the path.</p>
+
+    <p><strong>Direct contribution</strong> — controlled by the <code>isAccumBounces</code> flag:</p>
+    <ul>
+      <li>If <code>isAccumBounces=true</code> (default), direct lighting is always added to <code>L_out</code> at every depth level.</li>
+      <li>If <code>isAccumBounces=false</code>, direct lighting is added only at the final bounce (<code>r.depth == 1</code>), so only the Nth bounce contributes.</li>
+    </ul>
+
+    <p><strong>Indirect contribution</strong> — traced when <code>r.depth &gt; 1</code>:</p>
+    <ol>
+      <li>Sample an incoming direction <code>wi</code> (object space) and the BSDF value <code>f</code> via <code>isect.bsdf->sample_f(w_out, &amp;wi, &amp;pdf)</code>.</li>
+      <li>Transform <code>wi</code> to world space and spawn a new ray from <code>hit_p</code> with <code>new_ray.depth = r.depth - 1</code>.</li>
+      <li>If the new ray hits something, recursively call <code>at_least_one_bounce_radiance</code> and accumulate:</li>
+    </ol>
+
+    \[
+L_\text{out} \mathrel{+}= f \cdot L_\text{indirect} \cdot \frac{\cos\theta}{\text{pdf} \cdot p_\text{rr}}
+\]
+
+    <p><strong>Russian Roulette</strong> — to allow unbiased termination without a hard depth ceiling:</p>
+    <ul>
+      <li>The first indirect bounce (when <code>r.depth == max_ray_depth</code>) is always traced (<code>rr_weight = 1.0</code>).</li>
+      <li>All subsequent bounces are traced with continuation probability <code>p_rr = 0.65</code>; the weight is divided by <code>p_rr</code> to keep the estimator unbiased.</li>
+    </ul>
+
+    <hr>
+
+    <h3>Global Illumination Renders (1024 spp)</h3>
+
+    <p><code>CBbunny.dae</code> and <code>CBspheres_lambertian.dae</code> at <code>-s 1024 -l 4 -m 5 -r 480 360</code></p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_GI.png" alt="bunny GI">
+        <figcaption>CBbunny</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_spheres_GI.png" alt="spheres GI">
+        <figcaption>CBspheres</figcaption>
+      </figure>
+    </div>
+
+    <hr>
+
+    <h3>Direct vs. Indirect Illumination (CBbunny, 1024 spp)</h3>
+
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_direct.png" alt="bunny direct">
+        <figcaption>Direct only (<code>-m 1</code>)</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_indirect.png" alt="bunny indirect">
+        <figcaption>Indirect only</figcaption>
+      </figure>
+    </div>
+
+    <p><strong>Direct only</strong>: The scene is lit purely by the area light. The ceiling, which is not in line-of-sight of the light, is completely dark. Hard shadow boundaries are visible.</p>
+
+    <p><strong>Indirect only</strong>: There is no direct illumination — the area light itself appears black. The scene is lit entirely by light that has bounced at least once. The ceiling receives color-bled light from the walls and floor. Shadows are soft and there is visible red/blue bleeding from the colored walls onto the bunny and floor.</p>
+
+    <hr>
+
+    <h3>Unaccumulated Bounces (<code>isAccumBounces=false</code>, CBbunny, 1024 spp)</h3>
+
+    <p>Each image shows only the contribution of exactly the Nth bounce.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_bounce0.png" alt="bounce 0">
+        <figcaption>m=0</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_bounce1.png" alt="bounce 1">
+        <figcaption>m=1</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_bounce2.png" alt="bounce 2">
+        <figcaption>m=2</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_bounce3.png" alt="bounce 3">
+        <figcaption>m=3</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_bounce4.png" alt="bounce 4">
+        <figcaption>m=4</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_bounce5.png" alt="bounce 5">
+        <figcaption>m=5</figcaption>
+      </figure>
+    </div>
+
+    <p><strong>2nd bounce</strong>: The ceiling is now lit (it was dark in direct illumination). Light that bounced once off the floor/walls reaches the ceiling for the first time. There is also visible color bleeding — red and blue tints from the walls appear on the bunny and floor.</p>
+
+    <p><strong>3rd bounce</strong>: Energy is significantly lower (each diffuse bounce attenuates the path weight). The image is dim but fills in subtle secondary color bleeding and soft fill light on previously dark areas. This bounce contributes detail that rasterization cannot capture — true ambient occlusion shading and inter-object color interaction are only achievable with ray-traced multi-bounce paths.</p>
+
+    <p>Compared to rasterization, these indirect bounces provide realistic soft illumination of shadowed areas, accurate color bleeding, and a globally consistent light distribution — all effects that require either expensive screen-space hacks or are simply absent in real-time rasterization pipelines.</p>
+
+    <hr>
+
+    <h3>Accumulated vs. Unaccumulated Bounces Comparison (CBbunny, 1024 spp)</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>m</th>
+            <th>Unaccumulated (<code>isAccumBounces=false</code>)</th>
+            <th>Accumulated (<code>isAccumBounces=true</code>)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0</td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_bounce0.png" alt="bounce 0"></figure></td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_accum0.png" alt="accum 0"></figure></td>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_bounce1.png" alt="bounce 1"></figure></td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_accum1.png" alt="accum 1"></figure></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_bounce2.png" alt="bounce 2"></figure></td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_accum2.png" alt="accum 2"></figure></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_bounce3.png" alt="bounce 3"></figure></td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_accum3.png" alt="accum 3"></figure></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_bounce4.png" alt="bounce 4"></figure></td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_accum4.png" alt="accum 4"></figure></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_bounce5.png" alt="bounce 5"></figure></td>
+            <td><figure style="margin: 0;"><img src="images/p4_bunny_accum5.png" alt="accum 5"></figure></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>As m increases in the unaccumulated column, images get progressively dimmer and more color-bled. In the accumulated column, each step adds the new bounce's contribution on top of previous ones — so the image converges toward full global illumination with each additional bounce. The difference between m=2 and m=3 accumulated is much smaller than between m=0 and m=1, reflecting the exponential attenuation of higher-order bounces.</p>
+
+    <hr>
+
+    <h3>Russian Roulette (CBbunny, 1024 spp)</h3>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_rr0.png" alt="rr 0">
+        <figcaption>m=0</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_rr1.png" alt="rr 1">
+        <figcaption>m=1</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_rr2.png" alt="rr 2">
+        <figcaption>m=2</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_rr3.png" alt="rr 3">
+        <figcaption>m=3</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_rr4.png" alt="rr 4">
+        <figcaption>m=4</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_rr100.png" alt="rr 100">
+        <figcaption>m=100</figcaption>
+      </figure>
+    </div>
+
+    <p>With Russian Roulette, the path terminates randomly at each bounce with probability <code>1 - p_rr = 0.35</code>, but the estimator is normalized so results are unbiased. The m=100 render looks essentially identical to m=4 or m=5 — in practice, almost no paths survive past 5–6 bounces given a 35% termination chance per bounce. This confirms that Russian Roulette provides unbiased global illumination without requiring a fixed large depth limit.</p>
+
+    <hr>
+
+    <h3>Sample Rate Comparison (CBbunny, 4 light rays, <code>-l 4</code>)</h3>
+
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s1.png" alt="s1">
+        <figcaption>s=1</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s2.png" alt="s2">
+        <figcaption>s=2</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s4.png" alt="s4">
+        <figcaption>s=4</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s8.png" alt="s8">
+        <figcaption>s=8</figcaption>
+      </figure>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0;">
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s16.png" alt="s16">
+        <figcaption>s=16</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s64.png" alt="s64">
+        <figcaption>s=64</figcaption>
+      </figure>
+      <figure style="margin: 0;">
+        <img src="images/p4_bunny_s1024.png" alt="s1024">
+        <figcaption>s=1024</figcaption>
+      </figure>
+    </div>
+
+    <p>At 1 sample per pixel the image is dominated by fireflies and noise — individual paths hit bright or dark configurations by chance. As the sample count increases, variance decreases: the noise floor drops noticeably between s=1 and s=16, and soft shadows/color bleeding become smooth and well-defined by s=64. At s=1024 the image is essentially noise-free with clean soft shadows, smooth color gradients on the bunny, and accurate color bleeding from the walls.</p>
   </section>
 
   <!-- Section 5 -->
