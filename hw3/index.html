@@ -815,24 +815,6 @@ I = 1.96 \cdot \frac{\sigma}{\sqrt{n}}
 
     <p>If \(I \leq \texttt{maxTolerance} \cdot \mu\) (default <code>maxTolerance=0.05</code>), the pixel has converged and sampling stops early. Otherwise it continues up to the maximum <code>ns_aa</code> samples. The actual sample count is written to <code>sampleCountBuffer</code> for the rate image.</p>
 
-    <pre><code>double s1 = 0.0, s2 = 0.0;
-int actual_samples = 0;
-
-for (int i = 0; i &lt; num_samples; i++) {
-    Vector3D L = est_radiance_global_illumination(r);
-    double xk = L.illum();
-    s1 += xk; s2 += xk * xk;
-    actual_samples++;
-
-    if (actual_samples % samplesPerBatch == 0) {
-        double mu    = s1 / actual_samples;
-        double sigma2 = (s2 - s1*s1/actual_samples) / (actual_samples - 1);
-        double I     = 1.96 * sqrt(sigma2 / actual_samples);
-        if (I &lt;= maxTolerance * mu) break;
-    }
-}
-sampleCountBuffer[x + y * sampleBuffer.w] = actual_samples;</code></pre>
-
     <hr>
 
     <h3>Results</h3>
